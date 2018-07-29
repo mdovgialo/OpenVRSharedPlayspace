@@ -19,6 +19,8 @@ MAXNAME = 200
 
 PORT = 45368
 
+DEBUG = True
+
 Update = namedtuple('Update', 'name position')
 
 class Device:
@@ -318,13 +320,19 @@ class SharedPlayspace:
 
         headset_pose = pose.mDeviceToAbsoluteTracking
         for name, i in self._devices_to_show_remote.items():
-            try:
-                if name not in self._device_visualisers:
-                        self._device_visualisers[name] = DeviceVisualiser(name)
-                self._device_visualisers[name].update(headset_pose, i.x, i.y, i.z)
-            except openvr.OpenVRError:
-                print("Got an partner device, but can't show it due to Overlay Error")
+            if not DEBUG:
+                try:
+                    if name not in self._device_visualisers:
+                            self._device_visualisers[name] = DeviceVisualiser(name)
+                    self._device_visualisers[name].update(headset_pose, i.x, i.y, i.z)
+                except openvr.OpenVRError:
+                    print("Got an partner device, but can't show it due to Overlay Error")
+                    print(name, i)
+            else:
+                print("Got an partner device, but can't show it due to HEADLESS DEBUG MODE")
                 print(name, i)
+
+
 
 
 
