@@ -27,6 +27,9 @@ class Device:
         self._z = 0
         self._pose = openvr.HmdMatrix34_t()
 
+    def __repr__(self):
+        return "<Device x {} y {} z {}>".format(self.x, self.y, self.z)
+
     pass
     @property
     def x(self):
@@ -157,7 +160,7 @@ class SharedPlayspace:
         self._devices_to_show_remote = {}
         self._device_visualisers = {}
         self.sender = BroadcastSender()
-        self.receiver = BroadcastReceiver()
+        # self.receiver = BroadcastReceiver()
 
     def get_headset(self):
         device_class = openvr.TrackedDeviceClass_HMD
@@ -182,7 +185,7 @@ class SharedPlayspace:
                     headset_id = self.get_tracker()
                 self._devices_to_broadcast[headset_id] = Device(headset_id)
             self._update_and_send()
-            self._receive_and_update()
+            # self._receive_and_update()
             self._draw()
 
             left_to_sleep = 1 / FRAMERATE - (time.monotonic() - t0)
