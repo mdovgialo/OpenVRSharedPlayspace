@@ -1,5 +1,6 @@
 import os
 import socket
+import traceback
 from getpass import getuser
 from queue import Queue, Empty
 from threading import Thread
@@ -12,6 +13,10 @@ from struct import Struct
 FRAMERATE = 90
 
 MAXNAME = 200
+
+PORT = 45368
+
+DEBUG = True
 
 class Device:
 
@@ -39,7 +44,7 @@ class Device:
         if self._id is not None:
             poses = openvr.VRSystem().getDeviceToAbsoluteTrackingPose(openvr.TrackingUniverseRawAndUncalibrated,
                                                                       0,
-                                                                      self._id
+                                                                      16
                                                                       )
             pose = poses[self._id]
 
@@ -63,8 +68,6 @@ class NetworkUpdateMsg:
         x = device.x
         y = device.y
         z = device.z
-        print(z)
-        print(type(z))
         args = [bytes(i.encode('utf-8')) for i in name][:MAXNAME]
         args.append(float(x))
         args.append(float(y))
@@ -90,11 +93,11 @@ class BroadcastSender:
         # Set a timeout so the socket does not block
         # indefinitely when trying to receive data.
         server.settimeout(0.1)
-        server.bind(("", 45368))
+        server.bind(("", PORT))
         self.server = server
     def put(self, dev: Device):
         message = NetworkUpdateMsg.from_device(dev)
-        self.server.sendto(message, ('<broadcast>', 45368))
+        self.server.sendto(message, ('<broadcast>', PORT))
 
 class BroadcastReceiver:
     def __init__(self):
@@ -109,7 +112,7 @@ class BroadcastReceiver:
     def _recv(self):
         client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
         client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        client.bind(("", 45368))
+        client.bind(("", PORT))
         self._client = client
         while self._working:
             msg = self._client.recv(NetworkUpdateMsg.length)
@@ -157,8 +160,17 @@ class SharedPlayspace:
         self.receiver = BroadcastReceiver()
 
     def get_headset(self):
+        device_class = openvr.TrackedDeviceClass_HMD
         for i in range(16):
-            if self.vrsys.getTrackedDeviceClass() == openvr.TrackedDeviceClass_HMD:
+
+            if self.vrsys.getTrackedDeviceClass(i) == device_class:
+                return i
+
+    def get_tracker(self):
+        device_class = openvr.TrackedDeviceClass_GenericTracker
+        for i in range(16):
+
+            if self.vrsys.getTrackedDeviceClass(i) == device_class:
                 return i
 
     def run(self):
@@ -166,6 +178,8 @@ class SharedPlayspace:
             t0 = time.monotonic()
             headset_id = self.get_headset()
             if headset_id not in self._devices_to_broadcast:
+                if headset_id is None:
+                    headset_id = self.get_tracker()
                 self._devices_to_broadcast[headset_id] = Device(headset_id)
             self._update_and_send()
             self._receive_and_update()
@@ -195,10 +209,18 @@ class SharedPlayspace:
 def main():
     while True:
         try:
-            sys = openvr.init(openvr.VRApplication_Overlay)
+            if DEBUG:
+                sys = openvr.init(openvr.VRApplication_Background)
+            else:
+                sys = openvr.init(openvr.VRApplication_Overlay)
+
             break
-        except Exception:
+        except Exception as e:
+            traceback.print_exc()
             time.sleep(1)
 
     app = SharedPlayspace(vrsys=sys)
     app.run()
+
+if __name__ == '__main__':
+    main()
