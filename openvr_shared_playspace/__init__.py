@@ -13,13 +13,14 @@ from struct import Struct
 
 from math import cos, sin
 
+from openvr_shared_playspace.settings import min_dst, max_dst, min_alpha, max_alpha, DEBUG
+
 FRAMERATE = 90
 
 MAXNAME = 200
 
 PORT = 45368
 
-DEBUG = True
 
 Update = namedtuple('Update', 'name position')
 
@@ -170,12 +171,6 @@ class DeviceVisualiser:
         h_z = headset_pose.m[2][3]
 
         dst = ((h_x - x)**2  + (h_y - y)**2 + (h_z - z)**2)**0.5
-        min_dst = 1.0
-        max_dst = 2.0
-
-        min_alpha = 0.3
-        max_alpha = 0.01
-
         if dst < min_dst:
             dst = min_dst
         if dst > max_dst:
