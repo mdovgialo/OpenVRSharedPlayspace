@@ -1,6 +1,7 @@
 import os
 import socket
 import traceback
+from collections import namedtuple
 from getpass import getuser
 from queue import Queue, Empty
 from threading import Thread
@@ -17,6 +18,8 @@ MAXNAME = 200
 PORT = 45368
 
 DEBUG = True
+
+Update = namedtuple('Update', 'name position')
 
 class Device:
 
@@ -82,7 +85,10 @@ class NetworkUpdateMsg:
         unpacked_items = cls.formater.unpack(bytes_str)
         name = ''.join([i.decode('utf-8') for i in unpacked_items[:MAXNAME]]).strip()
         x, y, z = unpacked_items[-3:]
-        return name, x, y, z
+        return Update(name, [x, y, z])
+
+
+
 
 def check_result(result):
     if result:
@@ -93,6 +99,7 @@ class BroadcastSender:
     def __init__(self):
         server = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
         server.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         # Set a timeout so the socket does not block
         # indefinitely when trying to receive data.
         server.settimeout(0.1)
@@ -115,6 +122,8 @@ class BroadcastReceiver:
     def _recv(self):
         client = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # UDP
         client.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+        client.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+
         client.bind(("", PORT))
         self._client = client
         while self._working:
@@ -129,17 +138,6 @@ class BroadcastReceiver:
                 to_return.append(self._recv_queue.get(block=False))
             except Empty:
                 return to_return
-
-class Update:
-    @property
-    def name(self):
-        return ''
-    @property
-    def position(self):
-        return [0, 0, 0]
-
-
-
 
 class DeviceVisualiser:
     def __init__(self, name):
@@ -160,7 +158,7 @@ class SharedPlayspace:
         self._devices_to_show_remote = {}
         self._device_visualisers = {}
         self.sender = BroadcastSender()
-        # self.receiver = BroadcastReceiver()
+        self.receiver = BroadcastReceiver()
 
     def get_headset(self):
         device_class = openvr.TrackedDeviceClass_HMD
@@ -185,7 +183,7 @@ class SharedPlayspace:
                     headset_id = self.get_tracker()
                 self._devices_to_broadcast[headset_id] = Device(headset_id)
             self._update_and_send()
-            # self._receive_and_update()
+            self._receive_and_update()
             self._draw()
 
             left_to_sleep = 1 / FRAMERATE - (time.monotonic() - t0)
@@ -200,13 +198,15 @@ class SharedPlayspace:
     def _receive_and_update(self):
         updates = self.receiver.get()
         for update in updates:
+            if update.name.startswith(socket.gethostname()):
+                continue
             if update.name not in self._devices_to_show_remote:
                 self._devices_to_show_remote[update.name] = Device(None)
             self._devices_to_show_remote[update.name].update_pose(update.position)
 
     def _draw(self):
-        for i in self._devices_to_show_remote.values():
-            print(i.x, i.y, i.z)
+        for name, i in self._devices_to_show_remote.items():
+            print(name, i.x, i.y, i.z)
 
 
 def main():
