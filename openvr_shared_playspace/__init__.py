@@ -318,15 +318,20 @@ class SharedPlayspace:
 
         headset_pose = pose.mDeviceToAbsoluteTracking
         for name, i in self._devices_to_show_remote.items():
-            if name not in self._device_visualisers:
-                self._device_visualisers[name] = DeviceVisualiser(name)
-            self._device_visualisers[name].update(headset_pose, i.x, i.y, i.z)
+            try:
+                if name not in self._device_visualisers:
+                        self._device_visualisers[name] = DeviceVisualiser(name)
+                self._device_visualisers[name].update(headset_pose, i.x, i.y, i.z)
+            except openvr.OpenVRError:
+                print("Got an partner device, but can't show it due to Overlay Error")
+                print(name, i)
+
 
 
 def main():
     while True:
         try:
-            sys = openvr.init(openvr.VRApplication_Overlay)
+            sys = openvr.init(openvr.VRApplication_Background)
             break
         except Exception as e:
             traceback.print_exc()
