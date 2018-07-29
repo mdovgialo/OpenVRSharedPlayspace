@@ -31,6 +31,7 @@ class Device:
     def y(self):
         return self._y
 
+    @property
     def z(self):
         return self._z
 
@@ -62,10 +63,12 @@ class NetworkUpdateMsg:
         x = device.x
         y = device.y
         z = device.z
+        print(z)
+        print(type(z))
         args = [bytes(i.encode('utf-8')) for i in name][:MAXNAME]
-        args.append(x)
-        args.append(y)
-        args.append(z)
+        args.append(float(x))
+        args.append(float(y))
+        args.append(float(z))
         return cls.formater.pack(*args)
 
     @classmethod
@@ -115,11 +118,11 @@ class BroadcastReceiver:
 
     def get(self):
         to_return = []
-        try:
-
-            to_return.append(self._recv_queue.get(block=False))
-        except Empty:
-            return to_return
+        while True:
+            try:
+                to_return.append(self._recv_queue.get(block=False))
+            except Empty:
+                return to_return
 
 class Update:
     @property
