@@ -151,7 +151,7 @@ class DeviceVisualiser:
         print("Looking for a SharedPlayspace avatar in {}".format(image_file))
         if os.path.exists(image_file):
             print("Found it!")
-            self._image_file = self._image_file
+            self._image_file = image_file
         else:
             print("Not found! Using default! {}".format(default_image_file))
             self._image_file = default_image_file
